@@ -18,10 +18,10 @@
           <v-card
             class="py-4"
             color="surface-variant"
-            image=""
             prepend-icon="mdi-check-circle" size="x-large"
             rounded="lg"
             variant="tonal"
+            :to="'/barberlist'"
           >
             <template #image>
               <v-img position="top right" />

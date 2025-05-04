@@ -1,12 +1,9 @@
 <template>
   <v-app>
-    <v-main>
-      <HelloWorld />
-    </v-main>
-
-    <AppFooter />
+    <router-view /> <!-- Zeigt aktive Seite -->
   </v-app>
 </template>
+
 
 <script setup>
   //
