@@ -9,7 +9,7 @@
     <v-img
       v-else
       src="/default-image.png"
-      height="200px"
+      height="auto"
       cover
     />
 
@@ -19,6 +19,7 @@
       <v-btn color="#C5A253" @click="$emit('book', barber)">Termin buchen</v-btn>
     </v-card-actions>
   </v-card>
+
 </template>
 
 <script>

@@ -3,7 +3,7 @@
     <div>
       <v-img
         class="mb-4"
-        height="150"
+        height="300"
         src="/PereDelCasoLogoTrns.png"
       />
 
@@ -41,21 +41,20 @@
           </v-card>
         </v-col>
 
-        <v-col v-for="link in links" :key="link.href" cols="6">
+        <v-col v-for="link in links" :key="link.to" cols="6">
           <v-card
-            append-icon="mdi-open-in-new"
             class="py-4"
             color="surface-variant"
-            :href="link.href"
             :prepend-icon="link.icon"
-            rel="noopener noreferrer"
             rounded="lg"
             :subtitle="link.subtitle"
-            target="_blank"
             :title="link.title"
             variant="tonal"
+            :to="link.to"
           />
         </v-col>
+
+
       </v-row>
     </div>
   </v-container>
@@ -64,28 +63,16 @@
 <script setup>
   const links = [
     {
-      href: 'https://vuetifyjs.com/',
-      icon: 'mdi-text-box-outline',
-      subtitle: 'Learn about all things Vuetify in our documentation.',
-      title: 'Documentation',
+      to:'/cancel',
+      icon: 'mdi-information',
+      subtitle: 'Wählen um einen Termin zu stornieren',
+      title: 'Termin Stornieren',
     },
     {
-      href: 'https://vuetifyjs.com/introduction/why-vuetify/#feature-guides',
-      icon: 'mdi-star-circle-outline',
-      subtitle: 'Explore available framework Features.',
-      title: 'Features',
-    },
-    {
-      href: 'https://vuetifyjs.com/components/all',
-      icon: 'mdi-widgets-outline',
-      subtitle: 'Discover components in the API Explorer.',
-      title: 'Components',
-    },
-    {
-      href: 'https://discord.vuetifyjs.com',
-      icon: 'mdi-account-group-outline',
-      subtitle: 'Connect with Vuetify developers.',
-      title: 'Community',
+      to:'/',
+      icon: 'mdi-access-point',
+      subtitle: 'Wählen um sich mit Ihrem Unternehmen anzumelden',
+      title: 'Anmelden',
     },
   ]
 </script>

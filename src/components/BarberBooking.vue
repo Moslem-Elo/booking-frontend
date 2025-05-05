@@ -2,12 +2,26 @@
   <v-container>
     <v-row justify="center">
       <v-col cols="12" md="10" lg="8">
+
+        <!-- Service Auswahl -->
+        <v-select
+          v-model="selectedService"
+          :items="services"
+          :item-title="formatServiceLabel"
+          item-value="id"
+          label="Wähle einen Service"
+          return-object
+          outlined
+        />
+
         <!-- Date Picker -->
         <v-date-picker
+          v-if="selectedService && holidaysLoaded"
           v-model="selectedDate"
+          :allowed-dates="isAllowedDate"
           @update:model-value="handleDateChange"
           show-adjacent-months
-          color="primary"
+          color="#C5A253"
         />
 
         <!-- Ladeanimation -->
@@ -38,65 +52,130 @@
           Keine verfügbaren Zeiten gefunden.
         </div>
 
-
-        <!-- Keine Zeiten -->
-        <div v-else-if="showNoTimesMessage" class="mt-6 text-subtitle-1 text-center">
-          Keine verfügbaren Zeiten gefunden.
+        <!-- Buchungsbutton -->
+        <div v-if="selectedTime && selectedService && selectedDate && !showBookingForm" class="mt-6">
+          <v-btn color="#C5A253" @click="showBookingForm = true">Termin buchen</v-btn>
         </div>
+
+        <!-- Buchungsformular -->
+        <div v-if="showBookingForm" class="mt-4">
+          <v-text-field v-model="customerName" label="Dein Vor- und Nachname" outlined required />
+          <v-text-field v-model="customerEmail" label="Deine E-Mail" outlined required />
+          <v-text-field
+            v-model="customerPhone"
+            label="Deine Telefonnummer"
+            outlined
+            required
+            type="tel"
+            placeholder="+49 176 12345678"
+            :rules="[validatePhone]"
+          />
+          <v-btn color="success" class="mt-2" @click="submitBooking">Buchung absenden</v-btn>
+        </div>
+
       </v-col>
     </v-row>
+
+    <!-- Absendeanimation -->
+    <div v-if="isSubmitting" class="mt-4 text-center">
+      <v-progress-circular indeterminate color="primary" />
+    </div>
   </v-container>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-// Route und Parameter
 const route = useRoute()
-const barberId = route.params.barberId
+const router = useRouter()
 
-// Reaktive States
+// States
+const barberId = route.params.barberId
+const services = ref([])
+const selectedService = ref(null)
 const selectedDate = ref(null)
 const availableTimes = ref([])
 const selectedTime = ref(null)
 const isLoading = ref(false)
 const showNoTimesMessage = ref(false)
+const showBookingForm = ref(false)
+const customerName = ref('')
+const customerEmail = ref('')
+const customerPhone = ref('')
+const isSubmitting = ref(false)
+const holidays = ref([])
+const holidaysLoaded = ref(false)
 
-// Formatierte Anzeige des Datums
+const validatePhone = (value) => {
+  const regex = /^[+0-9\s()-]{7,20}$/
+  return regex.test(value) || 'Bitte eine gültige Telefonnummer eingeben.'
+}
+
+const toIsoDate = (date) => {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`
+}
+
+const loadHolidays = async () => {
+  const year = new Date().getFullYear()
+  try {
+    const res = await fetch(`https://booking-backend-jnhl.onrender.com/api/holidays?year=${year}`)
+    if (!res.ok) throw new Error('Feiertage konnten nicht geladen werden.')
+    holidays.value = await res.json()
+  } catch (err) {
+    console.error('Fehler beim Laden der Feiertage:', err)
+  } finally {
+    holidaysLoaded.value = true
+  }
+}
+
+const formatServiceLabel = (service) => {
+  if (!service) return ''
+  return `${service.name} – ${service.price.toFixed(2)}€ (${service.duration} Min.)`
+}
+
+const formatTime = (timeArray) => {
+  const [hour, minute] = timeArray
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+}
+
 const formattedDate = computed(() => {
   return selectedDate.value
     ? new Date(selectedDate.value).toLocaleDateString('de-DE')
     : ''
 })
 
-// Hilfsfunktion zur Formatierung der Uhrzeit (z. B. [10, 15] → "10:15")
-const formatTime = (timeArray) => {
-  const [hour, minute] = timeArray
-  const pad = (n) => n.toString().padStart(2, '0')
-  return `${pad(hour)}:${pad(minute)}`
-}
-
-// Datum für API umwandeln in YYYY-MM-DD
 const formatDateForBackend = (date) => {
+  return toIsoDate(date)
+}
+
+const isAllowedDate = (date) => {
+  const iso = toIsoDate(date)
   const d = new Date(date)
-  return d.toISOString().split('T')[0]
+  const isSunday = d.getDay() === 0
+  return !isSunday && !holidays.value.includes(iso)
 }
 
-// Wenn ein neues Datum gewählt wurde
-const handleDateChange = (newValue) => {
-  selectedDate.value = newValue
-  fetchAvailableTimes()
+const fetchServices = async () => {
+  try {
+    const res = await fetch('https://booking-backend-jnhl.onrender.com/api/services/all')
+    if (!res.ok) throw new Error('Fehler beim Laden der Services')
+    services.value = await res.json()
+  } catch (err) {
+    console.error(err)
+  }
 }
 
-// Lade verfügbare Zeiten vom Backend
 const fetchAvailableTimes = async () => {
-  if (!selectedDate.value || !barberId) return
+  if (!selectedDate.value || !barberId || !selectedService.value) return
 
   const formatted = formatDateForBackend(selectedDate.value)
   isLoading.value = true
   showNoTimesMessage.value = false
   availableTimes.value = []
+  selectedTime.value = null
+  showBookingForm.value = false
 
   try {
     const response = await fetch(
@@ -106,16 +185,35 @@ const fetchAvailableTimes = async () => {
     if (!response.ok) throw new Error('Fehler beim Laden der Zeiten')
 
     const data = await response.json()
-    availableTimes.value = data // keine Filterung nötig!
+    const serviceDuration = selectedService.value.duration
+    const timeToMinutes = ([h, m]) => h * 60 + m
+
+    availableTimes.value = data.filter((slot, index) => {
+      let total = 0
+      let current = index
+
+      while (current < data.length && total < serviceDuration) {
+        const curr = data[current]
+        const prevEnd = current > index ? timeToMinutes(data[current - 1].endTime) : null
+        const currStart = timeToMinutes(curr.startTime)
+        const currEnd = timeToMinutes(curr.endTime)
+
+        if (current === index || currStart === prevEnd) {
+          total += currEnd - currStart
+          current++
+        } else break
+      }
+
+      return total >= serviceDuration
+    })
 
     if (availableTimes.value.length === 0) {
       setTimeout(() => {
         showNoTimesMessage.value = true
       }, 1000)
     }
-
   } catch (error) {
-    console.error('Fehler beim Abrufen der Zeiten:', error)
+    console.error(error)
     setTimeout(() => {
       showNoTimesMessage.value = true
     }, 1000)
@@ -123,4 +221,64 @@ const fetchAvailableTimes = async () => {
     isLoading.value = false
   }
 }
+
+watch(selectedService, () => {
+  selectedDate.value = null
+  selectedTime.value = null
+  availableTimes.value = []
+  showBookingForm.value = false
+  showNoTimesMessage.value = false
+})
+
+const handleDateChange = (newValue) => {
+  selectedDate.value = newValue
+  fetchAvailableTimes()
+}
+
+const submitBooking = async () => {
+  if (!customerName.value || !customerEmail.value || !customerPhone.value) {
+    alert('Bitte Name, E-Mail und Telefonnummer eingeben.')
+    return
+  }
+
+  isSubmitting.value = true
+
+  const [hour, minute] = selectedTime.value.split(':').map(Number)
+  const startDate = new Date(selectedDate.value)
+  startDate.setHours(hour, minute)
+  const endDate = new Date(startDate)
+  endDate.setMinutes(endDate.getMinutes() + selectedService.value.duration)
+
+  const payload = {
+    barber: {id: Number(barberId)},
+    services: {id: selectedService.value.id},
+    date: formatDateForBackend(selectedDate.value),
+    start_time: selectedTime.value,
+    end_time: `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`,
+    customer_name: customerName.value,
+    customer_email: customerEmail.value,
+    customer_phone: customerPhone.value // ← nur, wenn Backend das erwartet
+  }
+
+  try {
+    const res = await fetch('https://booking-backend-jnhl.onrender.com/api/bookings/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    })
+
+    if (!res.ok) throw new Error('Fehler bei der Buchung')
+    router.push({name: 'BookingSuccess'})
+  } catch (err) {
+    console.error(err)
+    alert('Buchung fehlgeschlagen.')
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+onMounted(() => {
+  fetchServices()
+  loadHolidays()
+})
 </script>

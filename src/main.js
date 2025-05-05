@@ -9,7 +9,8 @@ import { registerPlugins } from '@/plugins'
 
 // Components
 import App from './App.vue'
-
+import VueTelInput from 'vue-tel-input'
+import 'vue-tel-input/vue-tel-input.css'
 // Composables
 import { createApp } from 'vue'
 
