@@ -1,13 +1,21 @@
 <template>
-  <v-card class="mx-auto" max-width="300">
+  <v-card class="barber-card" outlined>
     <v-img
+      v-if="barber.profileImage"
       :src="'data:image/jpeg;base64,' + barber.profileImage"
       height="200px"
       cover
     />
-    <v-card-title>{{ barber.name }}</v-card-title>
+    <v-img
+      v-else
+      src="/default-image.png"
+      height="200px"
+      cover
+    />
 
-    <v-card-actions>
+    <v-card-title class="text-center">{{ barber.name }}</v-card-title>
+
+    <v-card-actions class="justify-center">
       <v-btn color="#C5A253" @click="$emit('book', barber)">Termin buchen</v-btn>
     </v-card-actions>
   </v-card>
@@ -21,3 +29,15 @@ export default {
   },
 }
 </script>
+
+<style scoped>
+.barber-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  max-height: 500px;
+}
+</style>
